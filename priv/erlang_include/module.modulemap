@@ -1,0 +1,4 @@
+module erlang {
+    header "erlang.h"
+    export *
+}
