@@ -1,26 +1,28 @@
 defmodule ElixirKit.SwiftPackage do
-  def build(otp_release, application, package_dir) do
-    resources_dir = Path.join(package_dir, "Sources/ElixirKit/_elixir_kit_build")
+  def build(resources_dir, application, mix_release_dir, package_dir) do
+    # deps = Mix.Project.deps_apps()
+    # deps = [:elixir | deps]
+    # deps = [application | deps]
 
-    File.cp_r!(otp_release, resources_dir) # copy otp build
+    # for dep <- deps do
+    # end
+    # for beam <- Path.wildcard(Path.join(mix_release_dir, "**/*.{beam,app}")) do
+    #   File.cp!(beam, Path.join(resources_dir, Path.basename(beam)))
+    # end
 
-    ebin = Path.expand(Application.app_dir(:elixir, "ebin"))
-    for beam <- Path.wildcard(Path.join(ebin, "*.beam")) do
-      File.cp!(beam, Path.join(resources_dir, Path.basename(beam)))
-    end
-    ebin = Path.expand(Application.app_dir(application, "ebin"))
-    for beam <- Path.wildcard(Path.join(ebin, "*.beam")) do
-      File.cp!(beam, Path.join(resources_dir, Path.basename(beam)))
+    for dep <- Path.wildcard(Path.join([mix_release_dir, "lib", "*"])) do
+      IO.puts "copying dep #{dep}"
+      File.cp_r(dep, Path.join([resources_dir, "lib", Path.basename(dep)]))
     end
 
-    for file <- Path.wildcard(Path.join(otp_release, "**/*")) do
-      path = Path.join(resources_dir, Path.relative_to(file, otp_release))
-        |> Path.expand()
-      if File.dir?(file) do
-        File.mkdir_p(path)
-      else
-        File.cp!(file, path)
-      end
-    end
+    # for file <- Path.wildcard(Path.join(otp_release, "**/*")) do
+    #   path = Path.join(resources_dir, Path.relative_to(file, otp_release))
+    #     |> Path.expand()
+    #   if File.dir?(file) do
+    #     File.mkdir_p(path)
+    #   else
+    #     File.cp!(file, path)
+    #   end
+    # end
   end
 end

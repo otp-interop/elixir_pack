@@ -1,14 +1,21 @@
 defmodule ElixirKit.OTP do
-  @make_flags "-j8"
+  @make_flags "-j8 -O"
   @c_flags "-fno-common -Os -mios-simulator-version-min=16.0"
+  @install_program "/usr/bin/install -c"
 
-  def build(sdk, otp_target, build_dir) do
+  def build(sdk, otp_target, xcomp_target, openssl, resources_dir, build_dir) do
     ref = "OTP-#{ElixirKit.Utils.otp_version}"
     url = "https://github.com/erlang/otp"
     otp_src = Path.join(build_dir, "_otp")
-    otp_release = Path.join(build_dir, "_otp_release")
+    otp_release = Path.expand(resources_dir)
 
     System.cmd("git", ["clone", "--depth", "1", "--branch", ref, url, otp_src])
+
+    lib_crypto = Path.expand(Path.join(openssl, "lib/libcrypto.a"))
+    nif_paths = [
+      Path.expand(Path.join(otp_src, "lib/crypto/priv/lib/#{otp_target}/crypto.a")),
+      Path.expand(Path.join(otp_src, "lib/asn1/priv/lib/#{otp_target}/asn1rt_nif.a"))
+    ]
 
     env = [
       {"MAKEFLAGS", @make_flags},
@@ -16,6 +23,8 @@ defmodule ElixirKit.OTP do
       {"ERLC_USE_SERVER", "true"},
       {"RELEASE_LIBBEAM", "yes"},
       {"RELEASE_ROOT", Path.expand(otp_release)},
+      {"LIBS", lib_crypto},
+      {"INSTALL_PROGRAM", @install_program},
     ]
 
     otp_include = Path.join("#{:code.root_dir}", "usr/include")
@@ -54,6 +63,9 @@ defmodule ElixirKit.OTP do
     System.cmd(Path.expand(Path.join(otp_src, "otp_build")), [
       "configure",
       "--xcomp-conf=#{Path.expand(xcomp_conf_path)}",
+      "--with-ssl=#{Path.expand(openssl)}",
+      "--disable-dynamic-ssl-lib",
+      "--enable-static-nifs=#{Enum.join(nif_paths, ",")}"
     ] ++ Enum.map(exclusions, &("--without-#{&1}")), cd: Path.expand(otp_src), env: env)
 
     System.cmd(Path.expand(Path.join(otp_src, "otp_build")), ["boot"], cd: Path.expand(otp_src), env: env)
@@ -76,9 +88,10 @@ defmodule ElixirKit.OTP do
     lib_erlang = Path.join(otp_release, "/usr/lib/liberlang.a")
     System.cmd("libtool", [
       "-static",
-      "-o", lib_erlang
-    ] ++ all_libraries)
+      "-o", lib_erlang,
+      lib_crypto,
+    ] ++ nif_paths ++ all_libraries)
 
-    {otp_release, lib_erlang}
+    lib_erlang
   end
 end

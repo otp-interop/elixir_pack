@@ -6,9 +6,9 @@
 //
 
 import Testing
-@testable import ElixirKit
+@testable import <#PACKAGE_NAME#>
 
-@Test func testElixirKit() async {
-    ElixirKit.start()
+@Test func test<#PACKAGE_NAME#>() async {
+    <#PACKAGE_NAME#>.start()
     try! await Task.sleep(for: .seconds(5)) // wait for elixir to finish executing
 }

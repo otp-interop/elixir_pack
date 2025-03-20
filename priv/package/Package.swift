@@ -4,19 +4,19 @@
 import PackageDescription
 
 let package = Package(
-    name: "ElixirKit",
+    name: "<#PACKAGE_NAME#>",
     platforms: [.iOS(.v18)],
     products: [
         // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
-            name: "ElixirKit",
-            targets: ["ElixirKit"]),
+            name: "<#PACKAGE_NAME#>",
+            targets: ["<#PACKAGE_NAME#>"]),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "ElixirKit",
+            name: "<#PACKAGE_NAME#>",
             dependencies: ["liberlang"],
             resources: [.copy("_elixir_kit_build")]
         ),
@@ -25,6 +25,6 @@ let package = Package(
             path: "liberlang.xcframework"
         ),
 
-        .testTarget(name: "ElixirKitTest", dependencies: ["ElixirKit"])
+        .testTarget(name: "<#PACKAGE_NAME#>Tests", dependencies: ["<#PACKAGE_NAME#>"])
     ]
 )
