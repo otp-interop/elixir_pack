@@ -37,4 +37,10 @@ defmodule ElixirKit.Utils do
         Process.group_leader(self(), original_gl)
     end
   end
+
+  def otp_target("iphonesimulator"), do: "aarch64-apple-iossimulator"
+  def otp_target("iphoneos"), do: "aarch64-apple-ios"
+
+  def openssl_target("iphonesimulator"), do: "iossimulator-arm64-xcrun"
+  def openssl_target("iphoneos"), do: "ios64-xcrun"
 end

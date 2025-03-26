@@ -1,9 +1,9 @@
 defmodule ElixirKit.OTP do
   @make_flags "-j8 -O"
-  @c_flags "-fno-common -Os -mios-simulator-version-min=16.0"
+  @c_flags "-fno-common -Os -mios-simulator-version-min=16.0 -mios-version-min=16.0"
   @install_program "/usr/bin/install -c"
 
-  def build(sdk, otp_target, xcomp_target, openssl, resources_dir, build_dir) do
+  def build(sdk, otp_target, openssl, resources_dir, build_dir) do
     ref = "OTP-#{ElixirKit.Utils.otp_version}"
     url = "https://github.com/erlang/otp"
     otp_src = Path.join(build_dir, "_otp")
@@ -55,8 +55,19 @@ defmodule ElixirKit.OTP do
     RANLIB="xcrun -sdk $sdk ranlib"
     AR="xcrun -sdk $sdk ar"
     """
-    xcomp_conf_path = Path.join(build_dir, "xcomp.conf")
-    File.write!(xcomp_conf_path, xcomp_conf)
+    # xcomp_conf_path = Path.join(build_dir, "xcomp.conf")
+    # File.write!(xcomp_conf_path, xcomp_conf)
+
+    xcomp_conf_path = Path.join([
+      otp_src,
+      "xcomp",
+      case sdk do
+        "iphonesimulator" ->
+          "erl-xcomp-arm64-iossimulator.conf"
+        "iphoneos" ->
+          "erl-xcomp-arm64-ios.conf"
+      end
+    ])
 
     # cross compile OTP
     exclusions = ~w(common_test debugger dialyzer diameter edoc eldap erl_docgen et eunit ftp inets jinterface megaco mnesia observer odbc os_man tftp wx xmerl)

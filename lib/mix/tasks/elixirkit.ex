@@ -12,7 +12,8 @@ defmodule Mix.Tasks.Elixirkit do
 
   ## SDKs
 
-    * `iphonesimulator` - iPhoneOS Simulator for Apple Silicon
+    * `iphoneos` - iOS
+    * `iphonesimulator` - iOS Simulator for Apple Silicon
 
   ## Environment Variables
 
@@ -42,22 +43,8 @@ defmodule Mix.Tasks.Elixirkit do
       end
     end
 
-    otp_target = case options.sdk do
-      "iphonesimulator" ->
-        "aarch64-apple-iossimulator"
-    end
-    xcomp_target = case options.sdk do
-      "iphonesimulator" ->
-        "arm64-iossimulator"
-    end
-    swift_target = case options.sdk do
-      "iphonesimulator" ->
-        "arm64-apple-ios18.4-simulator"
-    end
-    openssl_target = case options.sdk do
-      "iphonesimulator" ->
-        "iossimulator-arm64-xcrun"
-    end
+    otp_target = ElixirKit.Utils.otp_target(options.sdk)
+    openssl_target = ElixirKit.Utils.openssl_target(options.sdk)
 
     version = Mix.Project.get().project()[:version]
     secret_key_base =
@@ -122,7 +109,7 @@ defmodule Mix.Tasks.Elixirkit do
     end
 
     # build
-    lib_erlang = ElixirKit.OTP.build(options.sdk, otp_target, xcomp_target, openssl_dir, resources_dir, build_dir)
+    lib_erlang = ElixirKit.OTP.build(options.sdk, otp_target, openssl_dir, resources_dir, build_dir)
 
     ElixirKit.XCFramework.build(lib_erlang, package_dir)
 

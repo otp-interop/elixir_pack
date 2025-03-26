@@ -9,12 +9,12 @@ public struct <#PACKAGE_NAME#> {
         port: Int,
         secretKeyBase: String
     ) {
-        let rootdir = "\(bundlePath)/_elixir_kit_build/"
-        let bindir = "\(bundlePath)/_elixir_kit_build/releases/<#VERSION#>"
-        let bootdir = "\(bundlePath)/_elixir_kit_build/releases/<#VERSION#>/start"
-        let configdir = "\(bundlePath)/_elixir_kit_build/releases/<#VERSION#>/sys"
-        let libdir = "\(bundlePath)/_elixir_kit_build/lib"
-        let inetrc = "\(bundlePath)/_elixir_kit_build/erl_inetrc"
+        let rootdir = "\(bundlePath)/_elixirkit_build/"
+        let bindir = "\(bundlePath)/_elixirkit_build/releases/<#VERSION#>"
+        let bootdir = "\(bundlePath)/_elixirkit_build/releases/<#VERSION#>/start"
+        let configdir = "\(bundlePath)/_elixirkit_build/releases/<#VERSION#>/sys"
+        let libdir = "\(bundlePath)/_elixirkit_build/lib"
+        let inetrc = "\(bundlePath)/_elixirkit_build/erl_inetrc"
         
         setenv("BINDIR", bindir, 0)
         setenv("ERL_LIBS", rootdir, 0)
@@ -26,7 +26,7 @@ public struct <#PACKAGE_NAME#> {
         setenv("PORT", String(port), 0)
         
         var args: [UnsafeMutablePointer<CChar>?] = [
-            "elixir_kit",
+            "elixirkit",
             "--",
             "-bindir", bindir,
             "-root", rootdir,

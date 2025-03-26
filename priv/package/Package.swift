@@ -18,7 +18,7 @@ let package = Package(
         .target(
             name: "<#PACKAGE_NAME#>",
             dependencies: ["liberlang"],
-            resources: [.copy("_elixir_kit_build")]
+            resources: [.copy("_elixirkit_build")]
         ),
         .binaryTarget(
             name: "liberlang",
