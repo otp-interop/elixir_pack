@@ -1,11 +1,46 @@
 defmodule Mix.Tasks.ElixirKit do
   use Mix.Task
 
+  @shortdoc "Cross-compiles OTP and releases the project for native platforms"
+
+  @moduledoc """
+  Cross-compiles OTP and releases the project for native platforms.
+
+  ## Arguments
+
+      mix elixir_kit /output/for/package --sdk SDK [--overwrite]
+
+  ## SDKs
+
+    * `iphonesimulator` - iPhoneOS Simulator for Apple Silicon
+
+  ## Environment Variables
+
+  Configure the `mix release` with environment variables like `MIX_ENV=prod`.
+
+  If `SECRET_KEY_BASE` is not provided, a secret will be generated with `mix phx.gen.secret`.
+  """
+
   def run(args) do
     # setup sdk
-    {options, [], []} =
-      OptionParser.parse(args, struct: [application: :string, sdk: :string, output: :output])
+    {options, [output]} =
+      OptionParser.parse!(
+        args,
+        strict: [
+          sdk: :string,
+          overwrite: :boolean
+        ]
+      )
     options = Enum.into(options, %{})
+
+    package_dir = Path.expand(output)
+    if File.exists?(package_dir) do
+      if options[:overwrite] == true or Mix.shell().yes?("A package already exists at #{output}. Overwrite it?") do
+        File.rm_rf(package_dir)
+      else
+        raise "Could not overwrite existing package."
+      end
+    end
 
     otp_target = case options.sdk do
       "iphonesimulator" ->
@@ -24,8 +59,12 @@ defmodule Mix.Tasks.ElixirKit do
         "iossimulator-arm64-xcrun"
     end
 
-    build_dir = Path.expand("_elixir_kit_build")
-    package_dir = Path.expand(options.output)
+    version = Mix.Project.get().project()[:version]
+    secret_key_base =
+      System.get_env("SECRET_KEY_BASE") ||
+        ElixirKit.Utils.gen_secret()
+
+    build_dir = Path.join(Path.expand("_build"), "_elixir_kit")
     package_name = Path.basename(package_dir)
     resources_dir = Path.join(package_dir, "Sources/#{package_name}/_elixir_kit_build")
     mix_release_dir = Path.join(build_dir, "rel")
@@ -64,7 +103,8 @@ defmodule Mix.Tasks.ElixirKit do
             file,
             contents
               |> String.replace("<#PACKAGE_NAME#>", package_name)
-              |> String.replace("<#APPLICATION#>", options.application)
+              |> String.replace("<#VERSION#>", version)
+              |> String.replace("<#SECRET_KEY_BASE#>", secret_key_base)
           )
         {:error, _} ->
           :noop
@@ -86,7 +126,7 @@ defmodule Mix.Tasks.ElixirKit do
 
     ElixirKit.XCFramework.build(lib_erlang, package_dir)
 
-    ElixirKit.SwiftPackage.build(resources_dir, String.to_existing_atom(options.application), mix_release_dir, package_dir)
+    ElixirKit.SwiftPackage.build(resources_dir, mix_release_dir, package_dir)
 
     # patches
 
@@ -96,7 +136,5 @@ defmodule Mix.Tasks.ElixirKit do
     {alt_nameserver, {8,8,8,8}}.
     {lookup, [dns]}.
     """)
-
-
   end
 end
