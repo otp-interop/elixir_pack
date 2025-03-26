@@ -4,7 +4,7 @@ defmodule ElixirKit.XCFramework do
     System.cmd("xcodebuild", [
       "-create-xcframework",
       "-library", lib_erlang,
-      "-headers", Path.join(Application.app_dir(:elixir_kit), "priv/erlang_include"),
+      "-headers", Path.join(Application.app_dir(:elixirkit), "priv/erlang_include"),
       "-output", Path.join(package_dir, "liberlang.xcframework")
     ])
   end

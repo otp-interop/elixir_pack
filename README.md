@@ -3,22 +3,34 @@
 Build your Elixir application for iOS with the following mix task:
 
 ```sh
-mix elixir_kit TestPackage --sdk iphonesimulator
+mix elixirkit TestPackage --sdk iphonesimulator
 ```
 
 ## Offline LiveView Native Apps
 ElixirKit can build Phoenix applications to run on-device for offline support.
 
-### Add `elixir_kit`
-Add `elixir_kit` as a dev dependency in your `mix.exs` file.
+### Add dependencies
+Add `elixirkit` as a dev dependency in your `mix.exs` file.
 
 ```elixir
 def deps do
   [
-    {:elixir_kit, git: "https://github.com/liveview-native/elixir_kit", branch: "main"}
+    {:elixirkit, git: "https://github.com/liveview-native/elixirkit", branch: "main"}
   ]
 end
 ```
+
+> [!WARNING]
+> `plug_crypto` is currently [incompatible with iOS](https://github.com/elixir-plug/plug_crypto/pull/44).
+> Override the dependency in your mix file with the following fork as a workaround:
+> ```elixir
+> def deps do
+>   [
+>     {:plug_crypto, git: "https://github.com/diodechain/plug_crypto", branch: "main", override: true}
+>   ]
+> end
+> ```
+
 
 ### Prepare for a production release
 ElixirKit will run `mix release` to compile your application.
@@ -28,13 +40,13 @@ mix phx.digest
 ```
 
 ### Run ElixirKit
-Run the `elixir_kit` mix task to create a Swift Package containing your Phoenix server and OTP for iOS.
+Run the `elixirkit` mix task to create a Swift Package containing your Phoenix server and OTP for iOS.
 
 ```sh
-MIX_ENV=prod mix elixir_kit native/swiftui/YourAppServer --sdk iphonesimulator
+MIX_ENV=prod mix elixirkit native/swiftui/YourAppServer --sdk iphonesimulator
 ```
 
-Run `mix help elixir_kit` to get more info on the supported options.
+Run `mix help elixirkit` to get more info on the supported options.
 
 ### Add server to Xcode project
 Open your Xcode project and add the server package as a dependency.
@@ -81,17 +93,17 @@ Any logs from the server will appear in Xcode's debugger log.
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
-by adding `elixir_kit` to your list of dependencies in `mix.exs`:
+by adding `elixirkit` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:elixir_kit, "~> 0.1.0"}
+    {:elixirkit, "~> 0.1.0"}
   ]
 end
 ```
 
 Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
 and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at <https://hexdocs.pm/elixir_kit>.
+be found at <https://hexdocs.pm/elixirkit>.
 

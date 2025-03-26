@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.ElixirKit do
+defmodule Mix.Tasks.Elixirkit do
   use Mix.Task
 
   @shortdoc "Cross-compiles OTP and releases the project for native platforms"
@@ -8,7 +8,7 @@ defmodule Mix.Tasks.ElixirKit do
 
   ## Arguments
 
-      mix elixir_kit /output/for/package --sdk SDK [--overwrite]
+      mix elixirkit /output/for/package --sdk SDK [--overwrite]
 
   ## SDKs
 
@@ -64,9 +64,9 @@ defmodule Mix.Tasks.ElixirKit do
       System.get_env("SECRET_KEY_BASE") ||
         ElixirKit.Utils.gen_secret()
 
-    build_dir = Path.join(Path.expand("_build"), "_elixir_kit")
+    build_dir = Path.join(Path.expand("_build"), "_elixirkit")
     package_name = Path.basename(package_dir)
-    resources_dir = Path.join(package_dir, "Sources/#{package_name}/_elixir_kit_build")
+    resources_dir = Path.join(package_dir, "Sources/#{package_name}/_elixirkit_build")
     mix_release_dir = Path.join(build_dir, "rel")
     openssl_dir = Path.join(build_dir, "openssl_build")
 
@@ -81,7 +81,7 @@ defmodule Mix.Tasks.ElixirKit do
     Mix.Task.run("release", ["--path", mix_release_dir, "--overwrite"])
 
     # setup swift package
-    template_package = Path.join(Application.app_dir(:elixir_kit), "priv/package")
+    template_package = Path.join(Application.app_dir(:elixirkit), "priv/package")
     File.cp_r!(template_package, package_dir)
     # rename folders to use the package's name
     for file <- Path.wildcard(Path.join(package_dir, "**/*")) do
