@@ -1,9 +1,9 @@
 # ElixirKit
 
-Build your Elixir application for iOS with the following mix task (assuming the application being built is called `test`):
+Build your Elixir application for iOS with the following mix task:
 
 ```sh
-mix elixir_kit --application test --sdk iphonesimulator TestPackage
+mix elixir_kit TestPackage --sdk iphonesimulator
 ```
 
 ## Offline LiveView Native Apps
