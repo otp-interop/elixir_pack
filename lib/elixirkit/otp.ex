@@ -1,13 +1,12 @@
 defmodule ElixirKit.OTP do
   @make_flags "-j8 -O"
-  @c_flags "-fno-common -Os -mios-simulator-version-min=16.0 -mios-version-min=16.0"
   @install_program "/usr/bin/install -c"
 
-  def build(sdk, otp_target, openssl, resources_dir, build_dir) do
+  def build(sdk, otp_target, openssl, build_dir) do
     ref = "OTP-#{ElixirKit.Utils.otp_version}"
     url = "https://github.com/erlang/otp"
-    otp_src = Path.join(build_dir, "_otp")
-    otp_release = Path.expand(resources_dir)
+    otp_src = Path.join([build_dir, "_otp"])
+    otp_release = Path.join([build_dir, "_otp_release"])
 
     System.cmd("git", ["clone", "--depth", "1", "--branch", ref, url, otp_src])
 
@@ -27,53 +26,11 @@ defmodule ElixirKit.OTP do
       {"INSTALL_PROGRAM", @install_program},
     ]
 
-    otp_include = Path.join("#{:code.root_dir}", "usr/include")
-
-    # configure cross compilation
-    {sdk_root, _} = System.cmd("xcrun", ["-sdk", sdk, "--show-sdk-path"])
-    xcomp_conf = """
-    otp_target=#{otp_target}
-    cflags="#{@c_flags} -D__IOS__=yes"
-    arch="-arch arm64"
-    sdk=#{sdk}
-
-    sdkroot=#{sdk_root}
-
-    erl_xcomp_build=guess
-    erl_xcomp_host=$otp_target
-    erl_xcomp_configure_flags="--enable-builtin-zlib --disable-jit --without-termcap"
-    erl_xcomp_sysroot=$sdkroot
-
-    CC="xcrun -sdk $sdk cc $arch"
-    CFLAGS="$cflags"
-    CXX="xcrun -sdk $sdk c++ $arch"
-    CXXFLAGS=$CFLAGS
-    LD="xcrun -sdk $sdk ld $arch"
-    LDFLAGS="-L$sdkroot/usr/lib/ -lc++ -v"
-    DED_LD=$LD
-    DED_LDFLAGS="-L$sdkroot/usr/lib/ -r -v"
-    RANLIB="xcrun -sdk $sdk ranlib"
-    AR="xcrun -sdk $sdk ar"
-    """
-    # xcomp_conf_path = Path.join(build_dir, "xcomp.conf")
-    # File.write!(xcomp_conf_path, xcomp_conf)
-
-    xcomp_conf_path = Path.join([
-      otp_src,
-      "xcomp",
-      case sdk do
-        "iphonesimulator" ->
-          "erl-xcomp-arm64-iossimulator.conf"
-        "iphoneos" ->
-          "erl-xcomp-arm64-ios.conf"
-      end
-    ])
-
     # cross compile OTP
     exclusions = ~w(common_test debugger dialyzer diameter edoc eldap erl_docgen et eunit ftp inets jinterface megaco mnesia observer odbc os_man tftp wx xmerl)
     System.cmd(Path.expand(Path.join(otp_src, "otp_build")), [
       "configure",
-      "--xcomp-conf=#{Path.expand(xcomp_conf_path)}",
+      "--xcomp-conf=#{Path.expand(Path.join([otp_src, "xcomp", ElixirKit.Utils.xcomp_conf(sdk)]))}",
       "--with-ssl=#{Path.expand(openssl)}",
       "--disable-dynamic-ssl-lib",
       "--enable-static-nifs=#{Enum.join(nif_paths, ",")}"

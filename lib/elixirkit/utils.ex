@@ -43,4 +43,7 @@ defmodule ElixirKit.Utils do
 
   def openssl_target("iphonesimulator"), do: "iossimulator-arm64-xcrun"
   def openssl_target("iphoneos"), do: "ios64-xcrun"
+
+  def xcomp_conf("iphonesimulator"), do: "erl-xcomp-arm64-iossimulator.conf"
+  def xcomp_conf("iphoneos"), do: "erl-xcomp-arm64-ios.conf"
 end
