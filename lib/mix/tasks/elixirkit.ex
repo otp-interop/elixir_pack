@@ -103,14 +103,14 @@ defmodule Mix.Tasks.Elixirkit do
     Mix.shell().info([:green, "* assembling ", :reset, "a mix release"])
     Mix.Task.run("release", ["--path", mix_release_dir, "--overwrite"])
 
-    # build for each sdk
-    lib_erlangs = for sdk <- Keyword.get_values(options, :target) do
-      Mix.shell().info([:green, "* building ", :reset, "#{sdk}"])
+    # build for each target
+    lib_erlangs = for target <- Keyword.get_values(options, :target) do
+      Mix.shell().info([:green, "* building ", :reset, "#{target}"])
 
-      build_dir = Path.join(build_dir, sdk)
+      build_dir = Path.join(build_dir, target)
 
-      otp_target = ElixirKit.Utils.otp_target(sdk)
-      openssl_target = ElixirKit.Utils.openssl_target(sdk)
+      otp_target = ElixirKit.Utils.otp_target(target)
+      openssl_target = ElixirKit.Utils.openssl_target(target)
 
       openssl_dir = Path.join([build_dir, "openssl_build"])
       lib_crypto = Path.join(openssl_dir, "lib/libcrypto.a")
@@ -126,12 +126,12 @@ defmodule Mix.Tasks.Elixirkit do
       if not File.exists?(lib_erlang) do
         Mix.shell().info([:yellow, "* building ", :reset, "otp"])
         otp_release = Path.join([build_dir, "_otp_release"])
-        ElixirKit.OTP.build(sdk, otp_target, openssl_dir, build_dir, otp_release, lib_erlang)
+        ElixirKit.OTP.build(target, otp_target, openssl_dir, build_dir, otp_release, lib_erlang)
       else
         Mix.shell().info([:green, "* found ", :reset, "otp"])
       end
 
-      {sdk, lib_erlang}
+      {target, lib_erlang}
     end
 
     Mix.shell().info([:green, "* creating ", :reset, "xcframework"])
