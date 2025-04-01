@@ -2,7 +2,6 @@ defmodule ElixirKit.SwiftPackage do
   def build(resources_dir, mix_release_dir) do
     File.mkdir_p(Path.join(resources_dir, "lib"))
     for dep <- Path.wildcard(Path.join([mix_release_dir, "lib", "*"])) do
-      IO.puts "copying dep #{dep}"
       File.cp_r(dep, Path.join([resources_dir, "lib", Path.basename(dep)]))
     end
 

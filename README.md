@@ -3,7 +3,7 @@
 Build your Elixir application for iOS with the following mix task:
 
 ```sh
-mix elixirkit TestPackage --sdk iphonesimulator
+mix elixirkit TestPackage --target iphonesimulator-arm64
 ```
 
 ## Offline LiveView Native Apps
@@ -43,7 +43,7 @@ mix phx.digest
 Run the `elixirkit` mix task to create a Swift Package containing your Phoenix server and OTP for iOS.
 
 ```sh
-MIX_ENV=prod mix elixirkit native/swiftui/YourAppServer --sdk iphonesimulator
+MIX_ENV=prod mix elixirkit native/swiftui/YourAppServer --target iphonesimulator-arm64 --target iphoneos
 ```
 
 Run `mix help elixirkit` to get more info on the supported options.

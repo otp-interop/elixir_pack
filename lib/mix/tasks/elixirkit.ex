@@ -8,12 +8,15 @@ defmodule Mix.Tasks.Elixirkit do
 
   ## Arguments
 
-      mix elixirkit /output/for/package --sdk SDK [--overwrite]
+      mix elixirkit /output/for/package --target TARGET_A --target TARGET_B [--overwrite]
 
-  ## SDKs
+  ## Targets
 
     * `iphoneos` - iOS
-    * `iphonesimulator` - iOS Simulator for Apple Silicon
+    * `iphonesimulator-arm64` - iOS Simulator for Apple Silicon
+    * `iphonesimulator-x86_64` - iOS Simulator for x86
+    * `macosx-arm64` - macOS with Apple Silicon
+    * `macosx-x86_64` - macOS with x86
 
   ## Environment Variables
 
@@ -23,24 +26,23 @@ defmodule Mix.Tasks.Elixirkit do
   """
 
   def run(args) do
-    # setup sdk
     {options, [output]} =
       OptionParser.parse!(
         args,
         strict: [
-          sdk: :keep,
+          target: :keep,
           overwrite: :boolean
         ]
       )
 
     # setup swift package
-    Mix.shell().info("Creating Swift Package at #{output}")
     package_dir = Path.expand(output)
     package_name = Path.basename(package_dir)
+    Mix.shell().info([:green, "* creating ", :reset, "swift package #{package_name} (#{package_dir})"])
 
     if File.exists?(package_dir) do
       if options[:overwrite] == true or Mix.shell().yes?("A package already exists at #{output}. Overwrite it?") do
-        File.rm_rf(package_dir)
+        File.rm_rf!(package_dir)
       else
         raise "Could not overwrite existing package."
       end
@@ -98,12 +100,12 @@ defmodule Mix.Tasks.Elixirkit do
     mix_release_dir = Path.join(build_dir, "rel")
 
     # compile all beam files
-    Mix.shell().info("Creating a Mix release")
+    Mix.shell().info([:green, "* assembling ", :reset, "a mix release"])
     Mix.Task.run("release", ["--path", mix_release_dir, "--overwrite"])
 
     # build for each sdk
-    lib_erlangs = for sdk <- Keyword.get_values(options, :sdk) do
-      Mix.shell().info("Building for #{sdk}")
+    lib_erlangs = for sdk <- Keyword.get_values(options, :target) do
+      Mix.shell().info([:green, "* building ", :reset, "#{sdk}"])
 
       build_dir = Path.join(build_dir, sdk)
 
@@ -113,30 +115,29 @@ defmodule Mix.Tasks.Elixirkit do
       openssl_dir = Path.join([build_dir, "openssl_build"])
       lib_crypto = Path.join(openssl_dir, "lib/libcrypto.a")
       if not File.exists?(lib_crypto) do
-        Mix.shell().info("Building OpenSSL")
+        Mix.shell().info([:yellow, "* building ", :reset, "openssl"])
         ElixirKit.OpenSSL.build(openssl_target, openssl_dir, build_dir)
+      else
+        Mix.shell().info([:green, "* found ", :reset, "openssl"])
       end
 
-      Mix.shell().info("Building OTP")
-      lib_erlang = ElixirKit.OTP.build(sdk, otp_target, openssl_dir, build_dir)
+      otp_release = Path.join([build_dir, "_otp_release"])
+      lib_erlang = Path.join(otp_release, "/usr/lib/liberlang.a")
+      if not File.exists?(lib_erlang) do
+        Mix.shell().info([:yellow, "* building ", :reset, "otp"])
+        otp_release = Path.join([build_dir, "_otp_release"])
+        ElixirKit.OTP.build(sdk, otp_target, openssl_dir, build_dir, otp_release, lib_erlang)
+      else
+        Mix.shell().info([:green, "* found ", :reset, "otp"])
+      end
 
-      lib_erlang
+      {sdk, lib_erlang}
     end
 
-    Mix.shell().info("Creating erlang XCFramework")
-    ElixirKit.XCFramework.build(lib_erlangs, package_dir)
+    Mix.shell().info([:green, "* creating ", :reset, "xcframework"])
+    ElixirKit.XCFramework.build(lib_erlangs, package_dir, build_dir)
 
-    Mix.shell().info("Finalizing Swift Package")
+    Mix.shell().info([:green, "* assembling ", :reset, "swift package"])
     ElixirKit.SwiftPackage.build(resources_dir, mix_release_dir)
-
-    # patches
-    Mix.shell().info("Applying patches to build")
-
-    # create inetrc to prevent crashes with :inet.get_host
-    File.write!(Path.join(resources_dir, "erl_inetrc"), """
-    {edns,0}.
-    {alt_nameserver, {8,8,8,8}}.
-    {lookup, [dns]}.
-    """)
   end
 end
