@@ -45,6 +45,7 @@ public final class <#PACKAGE_NAME#> {
         setenv("ERL_LIBS", rootPath, 0)
         setenv("RELEASE_SYS_CONFIG", configPath, 0)
         setenv("RELEASE_ROOT", rootPath, 0)
+        setenv("ERL_INETRC", inetrcPath, 0)
         
         var args: [UnsafeMutablePointer<CChar>?] = ([
             "elixirkit",
@@ -57,7 +58,6 @@ public final class <#PACKAGE_NAME#> {
             "-boot_var", "RELEASE_LIB", libPath,
             "-interactive",
             "-pa", rootPath,
-            "-kernel", "inetrc", "'\(inetrcPath)'",
             "-config", configPath,
         ] + arguments)
             .map {
