@@ -139,5 +139,12 @@ defmodule Mix.Tasks.Elixirkit do
 
     Mix.shell().info([:green, "* assembling ", :reset, "swift package"])
     ElixirKit.SwiftPackage.build(resources_dir, mix_release_dir)
+
+    # create inetrc to prevent crashes with :inet.get_host
+    File.write!(Path.join(resources_dir, "inetrc"), """
+    {edns,0}.
+    {alt_nameserver, {8,8,8,8}}.
+    {lookup, [dns]}.
+    """)
   end
 end

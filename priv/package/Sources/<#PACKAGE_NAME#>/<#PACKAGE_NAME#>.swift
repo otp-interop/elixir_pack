@@ -39,6 +39,7 @@ public final class <#PACKAGE_NAME#> {
         let bootPath = "\(binPath)/start"
         let configPath = "\(binPath)/sys"
         let libPath = "\(rootPath)/lib"
+        let inetrcPath = "\(rootPath)/inetrc"
         
         setenv("BINDIR", binPath, 0)
         setenv("ERL_LIBS", rootPath, 0)
@@ -56,7 +57,7 @@ public final class <#PACKAGE_NAME#> {
             "-boot_var", "RELEASE_LIB", libPath,
             "-interactive",
             "-pa", rootPath,
-            "-kernel", "inet_dist_use_interface", "{127,0,0,1}",
+            "-kernel", "inetrc", "'\(inetrcPath)'",
             "-config", configPath,
         ] + arguments)
             .map {
