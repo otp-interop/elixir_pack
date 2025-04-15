@@ -1,4 +1,4 @@
-defmodule ElixirKit.OpenSSL do
+defmodule ElixirPack.OpenSSL do
   def build(target, prefix, build_dir) do
     openssl_dir = Path.join(build_dir, "_openssl")
     url = "https://www.openssl.org/source/openssl-1.1.1v.tar.gz"

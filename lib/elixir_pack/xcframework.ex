@@ -1,4 +1,4 @@
-defmodule ElixirKit.XCFramework do
+defmodule ElixirPack.XCFramework do
   def build(lib_erlangs, package_dir, build_dir) do
     # combine `liberlang`s that have the same sdk, but different architectures into a fat binary
     grouped_libs = lib_erlangs
@@ -25,7 +25,7 @@ defmodule ElixirKit.XCFramework do
     end
 
     # create xcframework
-    headers = Path.join(Application.app_dir(:elixirkit), "priv/erlang_include")
+    headers = Path.join(Application.app_dir(:elixir_pack), "priv/erlang_include")
     System.cmd("xcodebuild",
       ["-create-xcframework"]
       ++ Enum.flat_map(lib_erlangs, fn lib -> ["-library", lib, "-headers", headers] end)

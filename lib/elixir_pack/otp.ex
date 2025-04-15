@@ -1,9 +1,9 @@
-defmodule ElixirKit.OTP do
+defmodule ElixirPack.OTP do
   @make_flags "-j8 -O"
   @install_program "/usr/bin/install -c"
 
   def build(sdk, otp_target, openssl, build_dir, otp_release, lib_erlang) do
-    ref = "OTP-#{ElixirKit.Utils.otp_version}"
+    ref = "OTP-#{ElixirPack.Utils.otp_version}"
     url = "https://github.com/erlang/otp"
     otp_src = Path.join([build_dir, "_otp"])
 
@@ -27,7 +27,7 @@ defmodule ElixirKit.OTP do
 
     # cross compile OTP
     exclusions = ~w(common_test debugger dialyzer diameter edoc eldap erl_docgen et eunit ftp inets jinterface megaco mnesia observer odbc os_man tftp wx xmerl)
-    xcomp = ElixirKit.Utils.xcomp_conf(otp_src, sdk)
+    xcomp = ElixirPack.Utils.xcomp_conf(otp_src, sdk)
     System.cmd(Path.join(otp_src, "otp_build"), [
       "configure",
       "--xcomp-conf=#{xcomp}",

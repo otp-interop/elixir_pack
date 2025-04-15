@@ -1,4 +1,4 @@
-defmodule ElixirKit.SwiftPackage do
+defmodule ElixirPack.SwiftPackage do
   def build(resources_dir, mix_release_dir) do
     File.mkdir_p(Path.join(resources_dir, "lib"))
     for dep <- Path.wildcard(Path.join([mix_release_dir, "lib", "*"])) do

@@ -17,9 +17,11 @@ erl_crash.dump
 *.ez
 
 # Ignore package tarball (built via "mix hex.build").
-elixirkit-*.tar
+elixir_pack-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
 
 .build/
+
+.DS_Store

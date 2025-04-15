@@ -6,15 +6,26 @@ import erlang
 @Observable
 public final class <#PACKAGE_NAME#> {
     let thread: Thread
+    public let name: String
     public let port: Int
+    public let cookie: String
 
     public init(
+        _ shortName: String,
         host: String = "127.0.0.1",
         port: Int? = nil,
-        secretKeyBase: String = "<#SECRET_KEY_BASE#>"
+        secretKeyBase: String = "<#SECRET_KEY_BASE#>",
+        cookie: String? = nil
     ) {
+        let name = "\(shortName)@localhost"
+        self.name = name
+        
         let port = port ?? Self.automaticPort()
         self.port = port
+        
+        let cookie = cookie ?? UUID().uuidString
+        self.cookie = cookie
+        
         self.thread = Thread {
             // Phoenix environment variables
             setenv("SECRET_KEY_BASE", secretKeyBase, 0)
@@ -22,7 +33,12 @@ public final class <#PACKAGE_NAME#> {
             setenv("PHX_HOST", host, 0)
             setenv("PORT", String(port), 0)
 
-            Self.start()
+            Self.start(
+                with: [
+                    "-name", name,
+                    "-setcookie", cookie,
+                ]
+            )
         }
         self.thread.start()
     }
@@ -34,7 +50,7 @@ public final class <#PACKAGE_NAME#> {
     public static func start(
         with arguments: [String] = []
     ) {
-        let rootPath = Bundle.module.path(forResource: "_elixirkit_build", ofType: nil)!
+        let rootPath = Bundle.module.path(forResource: "_elixir_pack", ofType: nil)!
         let binPath = "\(rootPath)/releases/0.1.0"
         let bootPath = "\(binPath)/start"
         let configPath = "\(binPath)/sys"
@@ -48,7 +64,7 @@ public final class <#PACKAGE_NAME#> {
         setenv("ERL_INETRC", inetrcPath, 0)
         
         var args: [UnsafeMutablePointer<CChar>?] = ([
-            "elixirkit",
+            "elixir_pack",
             "--",
             "-bindir", binPath,
             "-root", rootPath,
@@ -60,9 +76,7 @@ public final class <#PACKAGE_NAME#> {
             "-pa", rootPath,
             "-config", configPath,
         ] + arguments)
-            .map {
-                $0.withCString { strdup($0) }
-            }
+            .map { strdup($0) }
         
         erlang.erl_start(Int32(args.count), &args)
     }

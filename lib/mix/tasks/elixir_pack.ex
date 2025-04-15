@@ -1,4 +1,4 @@
-defmodule Mix.Tasks.Elixirkit do
+defmodule Mix.Tasks.ElixirPack do
   use Mix.Task
 
   @shortdoc "Cross-compiles OTP and releases the project for native platforms"
@@ -8,7 +8,7 @@ defmodule Mix.Tasks.Elixirkit do
 
   ## Arguments
 
-      mix elixirkit /output/for/package --target TARGET_A --target TARGET_B [--overwrite]
+      mix elixir_pack /output/for/package --target TARGET_A --target TARGET_B [--overwrite]
 
   ## Targets
 
@@ -51,9 +51,9 @@ defmodule Mix.Tasks.Elixirkit do
     version = Mix.Project.get().project()[:version]
     secret_key_base =
       System.get_env("SECRET_KEY_BASE") ||
-        ElixirKit.Utils.gen_secret()
+        ElixirPack.Utils.gen_secret()
 
-    template_package = Path.join(Application.app_dir(:elixirkit), "priv/package")
+    template_package = Path.join(Application.app_dir(:elixir_pack), "priv/package")
     File.cp_r!(template_package, package_dir)
     # rename folders to use the package's name
     for file <- Path.wildcard(Path.join(package_dir, "**/*")) do
@@ -93,9 +93,9 @@ defmodule Mix.Tasks.Elixirkit do
       end
     end
 
-    build_dir = Path.join(Path.expand("_build"), "_elixirkit")
+    build_dir = Path.join(Path.expand("_build"), "_elixir_pack")
     File.mkdir_p!(build_dir)
-    resources_dir = Path.join(package_dir, "Sources/#{package_name}/_elixirkit_build")
+    resources_dir = Path.join(package_dir, "Sources/#{package_name}/_elixir_pack")
     File.mkdir_p(resources_dir)
     mix_release_dir = Path.join(build_dir, "rel")
 
@@ -109,14 +109,14 @@ defmodule Mix.Tasks.Elixirkit do
 
       build_dir = Path.join(build_dir, target)
 
-      otp_target = ElixirKit.Utils.otp_target(target)
-      openssl_target = ElixirKit.Utils.openssl_target(target)
+      otp_target = ElixirPack.Utils.otp_target(target)
+      openssl_target = ElixirPack.Utils.openssl_target(target)
 
       openssl_dir = Path.join([build_dir, "openssl_build"])
       lib_crypto = Path.join(openssl_dir, "lib/libcrypto.a")
       if not File.exists?(lib_crypto) do
         Mix.shell().info([:yellow, "* building ", :reset, "openssl"])
-        ElixirKit.OpenSSL.build(openssl_target, openssl_dir, build_dir)
+        ElixirPack.OpenSSL.build(openssl_target, openssl_dir, build_dir)
       else
         Mix.shell().info([:green, "* found ", :reset, "openssl"])
       end
@@ -126,7 +126,7 @@ defmodule Mix.Tasks.Elixirkit do
       if not File.exists?(lib_erlang) do
         Mix.shell().info([:yellow, "* building ", :reset, "otp"])
         otp_release = Path.join([build_dir, "_otp_release"])
-        ElixirKit.OTP.build(target, otp_target, openssl_dir, build_dir, otp_release, lib_erlang)
+        ElixirPack.OTP.build(target, otp_target, openssl_dir, build_dir, otp_release, lib_erlang)
       else
         Mix.shell().info([:green, "* found ", :reset, "otp"])
       end
@@ -135,10 +135,10 @@ defmodule Mix.Tasks.Elixirkit do
     end
 
     Mix.shell().info([:green, "* creating ", :reset, "xcframework"])
-    ElixirKit.XCFramework.build(lib_erlangs, package_dir, build_dir)
+    ElixirPack.XCFramework.build(lib_erlangs, package_dir, build_dir)
 
     Mix.shell().info([:green, "* assembling ", :reset, "swift package"])
-    ElixirKit.SwiftPackage.build(resources_dir, mix_release_dir)
+    ElixirPack.SwiftPackage.build(resources_dir, mix_release_dir)
 
     # create inetrc to prevent crashes with :inet.get_host
     File.write!(Path.join(resources_dir, "inetrc"), """

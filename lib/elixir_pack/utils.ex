@@ -1,4 +1,4 @@
-defmodule ElixirKit.Utils do
+defmodule ElixirPack.Utils do
   def otp_version do
     major = :erlang.system_info(:otp_release) |> List.to_string()
     vsn_file = Path.join([:code.root_dir(), "releases", major, "OTP_VERSION"])
@@ -53,6 +53,6 @@ defmodule ElixirKit.Utils do
   def xcomp_conf(otp_src, "iphoneos"), do: Path.join([otp_src, "xcomp", "erl-xcomp-arm64-ios.conf"])
   def xcomp_conf(otp_src, "iphonesimulator-arm64"), do: Path.join([otp_src, "xcomp", "erl-xcomp-arm64-iossimulator.conf"])
   def xcomp_conf(otp_src, "iphonesimulator-x86_64"), do: Path.join([otp_src, "xcomp", "erl-xcomp-x86_64-iossimulator.conf"])
-  def xcomp_conf(otp_src, "macosx-arm64"), do: Path.join(Application.app_dir(:elixirkit), "priv/xcomp/erl-xcomp-arm64-macos.conf")
-  def xcomp_conf(otp_src, "macosx-x86_64"), do: Path.join(Application.app_dir(:elixirkit), "priv/xcomp/erl-xcomp-x86_64-macos.conf")
+  def xcomp_conf(otp_src, "macosx-arm64"), do: Path.join(Application.app_dir(:elixir_pack), "priv/xcomp/erl-xcomp-arm64-macos.conf")
+  def xcomp_conf(otp_src, "macosx-x86_64"), do: Path.join(Application.app_dir(:elixir_pack), "priv/xcomp/erl-xcomp-x86_64-macos.conf")
 end

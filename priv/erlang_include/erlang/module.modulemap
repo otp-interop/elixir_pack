@@ -1,4 +1,5 @@
 module erlang {
     header "erlang.h"
+    header "ei.h"
     export *
 }

@@ -1,6 +1,6 @@
 //
-//  ElixirKitTest.swift
-//  ElixirKit
+//  ElixirPackTest.swift
+//  ElixirPack
 //
 //  Created by Carson.Katri on 3/18/25.
 //
