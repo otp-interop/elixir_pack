@@ -21,12 +21,12 @@ end
 ```
 
 > [!WARNING]
-> `plug_crypto` is currently [incompatible with iOS](https://github.com/elixir-plug/plug_crypto/pull/44).
-> Override the dependency in your mix file with the following fork as a workaround:
+> Elixir Pack requires [`plug_crypto`](https://hexdocs.pm/plug_crypto/Plug.Crypto.html) v2.1.1+ to support iOS.
+> Specify this dependency in your mix file:
 > ```elixir
 > def deps do
 >   [
->     {:plug_crypto, git: "https://github.com/diodechain/plug_crypto", branch: "main", override: true}
+>     {:plug_crypto, ">= 2.1.1"}
 >   ]
 > end
 > ```
