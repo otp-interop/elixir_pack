@@ -21,7 +21,7 @@ import erlang
 public actor ErlangNode {
     private var node = CNode()
     
-    fileprivate struct CNode: @unchecked Sendable {
+    struct CNode: @unchecked Sendable {
         var node = ei_cnode()
     }
     
@@ -81,9 +81,12 @@ public actor ErlangNode {
     /// ```
     public actor Connection: Sendable {
         let fileDescriptor: Int32
-        private var node: CNode
+        var node: CNode
         
         let termDecoder = TermDecoder()
+        
+        var messageTask: Task<(), Never>?
+        var messageStreams = [AsyncStream<Result<ErlangTermBuffer, Error>>.Continuation]()
         
         fileprivate init(
             fileDescriptor: Int32,
@@ -91,6 +94,145 @@ public actor ErlangNode {
         ) {
             self.fileDescriptor = fileDescriptor
             self.node = node
+        }
+        
+        deinit {
+            ei_close_connection(self.fileDescriptor)
+        }
+        
+        fileprivate func startMessageTask() {
+            guard self.messageTask == nil else { return }
+            
+            let fileDescriptor = self.fileDescriptor
+            
+            self.messageTask = Task.detached { [weak self] in
+                while true {
+                    var message = erlang_msg()
+                    var buffer = ErlangTermBuffer()
+                    buffer.new()
+                    
+                    switch ei_xreceive_msg(fileDescriptor, &message, &buffer.buffer) {
+                    case ERL_TICK:
+                        print("tick")
+                        continue
+                    case ERL_ERROR:
+                        for stream in await self?.messageStreams ?? [] {
+                            stream.yield(.failure(ErlangNodeError.receiveFailed))
+                        }
+                        continue
+                    default:
+                        // check if this is a function `:call`
+                        // {:call, id, sender, [args...]}
+                        let bufferCopy = ErlangTermBuffer()
+                        bufferCopy.new()
+                        bufferCopy.append(buffer)
+                        var index: Int32 = 0
+                        var version: Int32 = 0
+                        bufferCopy.decode(version: &version, index: &index)
+                        
+                        var arity: Int32 = 0
+                        var atom: [CChar] = [CChar](repeating: 0, count: Int(MAXATOMLEN))
+                        if bufferCopy.decode(tupleHeader: &arity, index: &index),
+                           arity > 1,
+                           bufferCopy.decode(atom: &atom, index: &index),
+                           String(cString: atom) == "call"
+                        {
+                            var id: Int = 0
+                            bufferCopy.decode(long: &id, index: &index)
+                            var sender: erlang_pid = erlang_pid()
+                            bufferCopy.decode(pid: &sender, index: &index)
+                            do {
+                                nonisolated(unsafe) let arguments = ErlangTermBuffer()
+                                arguments.new()
+                                arguments.append(buffer)
+                                let result = try await Term.Function.call(callee: Term.PID(pid: message.to), id: id, arguments: arguments, argumentsStartIndex: index)
+                                try! await self?.send(result, to: Term.PID(pid: sender))
+                            } catch {
+                                let errorBuffer = try! Term.tuple([.atom("error"), .binary(Data(error.localizedDescription.utf8))]).makeBuffer()
+                                try! await self?.send(errorBuffer, to: Term.PID(pid: sender))
+                            }
+                            continue
+                        }
+                        
+                        for stream in await self?.messageStreams ?? [] {
+                            // marked nonisolated(unsafe) due to bug(?) with `sending T` on `yield`.
+                            // the value is safe to send, as it is never accessed again in this task,
+                            // but the compiler still complains about a possible data race.
+                            let bufferCopy = ErlangTermBuffer()
+                            bufferCopy.new()
+                            bufferCopy.append(buffer)
+                            nonisolated(unsafe) let result = Result<ErlangTermBuffer, any Error>.success(bufferCopy)
+                            stream.yield(result)
+                        }
+                    }
+                }
+            }
+        }
+        
+        public var messages: some AsyncSequence<Result<Term, Error>, Never> {
+            AsyncStream { continuation in
+                self.messageStreams.append(continuation)
+            }
+            .compactMap { result in
+                if case let .success(buffer) = result {
+                    var index: Int32 = 0
+                    var version: Int32 = 0
+                    buffer.decode(version: &version, index: &index)
+                    
+                    var arity: Int32 = 0
+                    var atom: [CChar] = [CChar](repeating: 0, count: Int(MAXATOMLEN))
+                    if buffer.decode(tupleHeader: &arity, index: &index),
+                       buffer.decode(atom: &atom, index: &index),
+                       let atom = String(cString: atom, encoding: .utf8),
+                       atom == "rex" || atom == "call"
+                    {
+                        // ignore RPC and function call messages
+                        return nil
+                    }
+                }
+                return result.flatMap { buffer in
+                    return Result {
+                        try Term(from: buffer)
+                    }
+                }
+            }
+        }
+        
+        public func messages<Message: Decodable>(
+            as type: Message.Type = Message.self
+        ) -> some AsyncSequence<Result<Message, Error>, Never> {
+            AsyncStream { continuation in
+                self.messageStreams.append(continuation)
+            }
+            .compactMap { result in
+                if case let .success(buffer) = result {
+                    var index: Int32 = 0
+                    var version: Int32 = 0
+                    buffer.decode(version: &version, index: &index)
+                    
+                    var arity: Int32 = 0
+                    var atom: [CChar] = [CChar](repeating: 0, count: Int(MAXATOMLEN))
+                    if buffer.decode(tupleHeader: &arity, index: &index),
+                       buffer.decode(atom: &atom, index: &index),
+                       let atom = String(cString: atom, encoding: .utf8),
+                       atom == "rex" || atom == "call"
+                    {
+                        // ignore RPC and function call messages
+                        return nil
+                    }
+                }
+                return result.flatMap { buffer in
+                    return Result {
+                        try TermDecoder().decode(Message.self, from: buffer)
+                    }
+                }
+            }
+        }
+        
+        func messageBuffers() -> some AsyncSequence<Result<ErlangTermBuffer, Error>, Never> {
+            AsyncStream { continuation in
+                self.messageStreams.append(continuation)
+            }
         }
         
         /// Send a ``Term`` to a named process on a remote node.
@@ -103,16 +245,34 @@ public actor ErlangNode {
                 message
             ]).makeBuffer()
             
-            let status = ei_reg_send(
+            guard ei_reg_send(
                 &node.node,
                 fileDescriptor,
                 strdup(process),
                 buffer.buff,
                 buffer.index
-            )
+            ) >= 0
+            else { throw ErlangNodeError.sendFailed }
+        }
+        
+        public func send(
+            _ message: Term,
+            to pid: Term.PID
+        ) throws {
+            let buffer = try Term.tuple([
+                .pid(.init(pid: ei_self(&node.node).pointee)),
+                message
+            ]).makeBuffer()
             
-            guard status >= 0
-            else { throw ErlangNodeError.failedToSend }
+            var pid = pid.pid
+            
+            guard ei_send(
+                fileDescriptor,
+                &pid,
+                buffer.buff,
+                buffer.index
+            ) >= 0
+            else { throw ErlangNodeError.sendFailed }
         }
         
         /// Send any  ``Swift/Encodable`` type to a named process on a remote
@@ -121,188 +281,92 @@ public actor ErlangNode {
             _ message: some Encodable,
             to process: String
         ) throws {
-            var buffer = ei_x_buff()
-            ei_x_new_with_version(&buffer)
+            var buffer = ErlangTermBuffer()
+            buffer.newWithVersion()
             
-            ei_x_encode_tuple_header(&buffer, 2)
-            ei_x_encode_pid(&buffer, ei_self(&node.node))
+            buffer.encode(tupleHeader: 2)
+            buffer.encode(pid: ei_self(&node.node))
             
             let encoder = TermEncoder()
             encoder.includeVersion = false
-            var messageBuffer = try encoder.encode(message)
-            ei_x_append(&buffer, &messageBuffer)
+            buffer.append(try encoder.encode(message))
             
-            let status = ei_reg_send(
+            guard ei_reg_send(
                 &node.node,
                 fileDescriptor,
                 strdup(process),
                 buffer.buff,
                 buffer.index
-            )
-            
-            guard status >= 0
-            else { throw ErlangNodeError.failedToSend }
+            ) >= 0
+            else { throw ErlangNodeError.sendFailed }
         }
         
-        /// Makes an RPC call with a ``Term`` result type and ``Term``
-        /// arguments.
-        ///
-        /// > Elixir modules must be prefixed with `Elixir.`
-        /// >
-        /// > By default, the ``module`` argument will refer to an Erlang module.
-        public func rpc(
-            _ module: String,
-            _ function: String,
-            _ arguments: [Term]
-        ) async throws -> Term {
-            var args = ei_x_buff()
-            ei_x_new(&args)
+        public func send(
+            _ message: some Encodable,
+            to pid: Term.PID
+        ) throws {
+            var buffer = ErlangTermBuffer()
+            buffer.newWithVersion()
             
-            try Term.list(arguments).encode(to: &args, initializeBuffer: false)
+            buffer.encode(tupleHeader: 2)
+            buffer.encode(pid: ei_self(&node.node))
             
-            var result = ei_x_buff()
-            ei_x_new(&result)
-            
-            guard ei_rpc(
-                &node.node,
-                fileDescriptor,
-                strdup(module),
-                strdup(function),
-                args.buff,
-                args.index,
-                &result
-            ) == 0
-            else { throw ErlangNodeError.rpcFailed }
-            
-            return try Term(from: &result)
-        }
-        
-        /// Makes an RPC call with a ``Swift/Decodable`` result type and
-        /// ``Swift/Encodable`` arguments.
-        ///
-        /// You can pass any `Encodable` type as an argument, and receive any number of
-        /// ``Decodable`` types as a response.
-        ///
-        /// ```swift
-        /// struct Version: Decodable {
-        ///     let major: Int
-        ///     let minor: Int
-        ///     let patch: Int
-        ///     let pre: [String]
-        /// }
-        ///
-        /// let version: Version = connection.rpc("Elixir.Version", "parse", ["2.0.1-alpha1"])
-        /// ```
-        ///
-        /// Assign the result to a tuple to decode multiple values.
-        ///
-        /// ```swift
-        /// // from Elixir: {:ok, "John Doe", 36}
-        /// let name: String, age: Int
-        /// (name, age) = try await connection.rpc("Elixir.User", "get", [0])
-        /// ```
-        ///
-        /// > Elixir modules must be prefixed with `Elixir.`
-        /// >
-        /// > By default, the ``module`` argument will refer to an Erlang module.
-        public func rpc<each Result: Decodable>(
-            _ module: String,
-            _ function: String,
-            _ arguments: [any Encodable]
-        ) async throws -> (repeat each Result) {
             let encoder = TermEncoder()
-            encoder.options.includeVersion = false
-            let args = try encoder.encode(
-                arguments.map(RPCArgument.init(item:))
-            )
+            encoder.includeVersion = false
+            buffer.append(try encoder.encode(message))
             
-            var result = ei_x_buff()
-            ei_x_new(&result)
-            
-            guard ei_rpc(
-                &node.node,
+            var pid = pid.pid
+            guard ei_send(
                 fileDescriptor,
-                strdup(module),
-                strdup(function),
-                args.buff,
-                args.index,
-                &result
-            ) == 0
-            else { throw ErlangNodeError.rpcFailed }
+                &pid,
+                buffer.buff,
+                buffer.index
+            ) >= 0
+            else { throw ErlangNodeError.sendFailed }
+        }
+        
+        func send(
+            _ message: ErlangTermBuffer,
+            to pid: Term.PID
+        ) throws {
+            var pid = pid.pid
             
-            return try termDecoder.decode(
-                RPCResult<repeat each Result>.self,
-                from: result
-            ).value
+            guard ei_send(
+                fileDescriptor,
+                &pid,
+                message.buff,
+                message.index
+            ) >= 0
+            else { throw ErlangNodeError.sendFailed }
         }
         
         /// Receives one message from a remote node, or `nil` if there are no
         /// messages to receive.
         public func receive() throws -> Term? {
-            let fileDescriptor = self.fileDescriptor
-            
-            var message = erlang_msg()
-            var buffer = ei_x_buff()
-            ei_x_new(&buffer)
-            
-            switch ei_xreceive_msg_tmo(fileDescriptor, &message, &buffer, 1) {
-            case ERL_TICK:
-                return nil
-            case ERL_ERROR:
-                return nil
-            default:
-                return try Term(from: &buffer)
-            }
+            return try receive().flatMap({
+                var buffer = $0
+                return try Term(from: buffer)
+            })
         }
         
         /// Receives one ``Swift/Decodable`` message from a remote node, or
         /// `nil` if there are no messages to receive.
         public func receive<Result: Decodable>() throws -> Result? {
-            let fileDescriptor = self.fileDescriptor
-            
+            return try receive().flatMap({ try termDecoder.decode(Result.self, from: $0) })
+        }
+        
+        private func receive() throws -> ErlangTermBuffer? {
             var message = erlang_msg()
-            var buffer = ei_x_buff()
-            ei_x_new(&buffer)
+            var buffer = ErlangTermBuffer()
+            buffer.new()
             
-            switch ei_xreceive_msg_tmo(fileDescriptor, &message, &buffer, 1) {
+            switch ei_xreceive_msg_tmo(self.fileDescriptor, &message, &buffer.buffer, 1) {
             case ERL_TICK:
                 return nil
             case ERL_ERROR:
                 return nil
             default:
-                return try termDecoder.decode(Result.self, from: buffer)
-            }
-        }
-        
-        private enum RPCStatus: String, Decodable {
-            case ok
-            case badrpc
-        }
-        
-        private struct RPCArgument: Encodable {
-            let item: any Encodable
-            
-            func encode(to encoder: any Encoder) throws {
-                var container = try encoder.singleValueContainer()
-                try container.encode(item)
-            }
-        }
-        
-        private struct RPCResult<each Value: Decodable>: Decodable {
-            let status: RPCStatus
-            let value: (repeat each Value)
-            
-            init(from decoder: any Decoder) throws {
-                var container = try decoder.unkeyedContainer()
-                self.status = try container.decode(RPCStatus.self)
-                switch self.status {
-                case .ok:
-                    self.value = (
-                        repeat try container.decode((each Value).self)
-                    )
-                case .badrpc:
-                    throw ErlangNodeError.rpcFailed
-                }
+                return buffer
             }
         }
     }
@@ -330,7 +394,14 @@ public actor ErlangNode {
         guard ei_global_register(fileDescriptor, name, ei_self(&node.node)) == 0
         else { throw ErlangNodeError.registerFailed }
         
-        return Connection(fileDescriptor: fileDescriptor, node: node)
+        let connection = Connection(fileDescriptor: fileDescriptor, node: node)
+        await connection.startMessageTask()
+        
+        return connection
+    }
+    
+    public var pid: Term.PID {
+        .init(pid: ei_self(&node.node).pointee)
     }
     
     enum ErlangNodeError: Error {
@@ -340,100 +411,7 @@ public actor ErlangNode {
         
         case notConnected
         
-        case failedToSend
-        case failedToReceive
-        
-        case rpcFailed
-    }
-}
-
-/// DSL for using `:rpc`.
-///
-/// Access modules from your Elixir application and call functions on them by
-/// passing the ``ErlangNode/Connection``.
-///
-/// ```swift
-/// try await Elixir.IO.puts(connection, "Hello, world!")
-/// ```
-///
-/// You can pass any `Encodable` type as an argument, and receive any number of
-/// ``Decodable`` types as a response.
-///
-/// ```swift
-/// struct Version: Decodable {
-///     let major: Int
-///     let minor: Int
-///     let patch: Int
-///     let pre: [String]
-/// }
-///
-/// let version: Version = try await Elixir.Version.parse(connection, "2.0.1-alpha1")
-/// ```
-///
-/// See ``TermEncoder`` for more details on customizing encoding.
-///
-/// Assign the result to a tuple to decode multiple values.
-///
-/// ```swift
-/// // from Elixir: {:ok, "John Doe", 36}
-/// let name: String, age: Int
-/// (name, age) = try await Elixir.User.get(connection, 0)
-/// ```
-@dynamicMemberLookup
-public enum Elixir {
-    public static subscript(dynamicMember memberName: String) -> Module {
-        Module(lhs: "Elixir", rhs: memberName)
-    }
-    
-    @dynamicMemberLookup
-    @dynamicCallable
-    public struct Module {
-        let lhs: String
-        let rhs: String
-        
-        public subscript(dynamicMember memberName: String) -> Module {
-            Module(lhs: "\(lhs).\(rhs)", rhs: memberName)
-        }
-        
-        public func dynamicallyCall<each Result: Decodable & Sendable>(
-            withArguments arguments: [any Sendable]
-        ) async throws -> (repeat each Result) {
-            guard let connection = arguments.first as? ErlangNode.Connection
-            else { throw RPCError.missingConnection }
-            return try await connection.rpc(
-                lhs,
-                rhs,
-                arguments
-                    .dropFirst()
-                    .map({
-                        guard let encodable = $0 as? any Encodable
-                        else { throw RPCError.invalidArgument($0) }
-                        return encodable
-                    })
-            )
-        }
-        
-        public func dynamicallyCall(
-            withArguments arguments: [any Sendable]
-        ) async throws -> Term {
-            guard let connection = arguments.first as? ErlangNode.Connection
-            else { throw RPCError.missingConnection }
-            return try await connection.rpc(
-                lhs,
-                rhs,
-                arguments
-                    .dropFirst()
-                    .compactMap({
-                        guard let term = $0 as? Term
-                        else { throw RPCError.invalidArgument($0) }
-                        return term
-                    })
-            )
-        }
-        
-        enum RPCError: Error {
-            case missingConnection
-            case invalidArgument(any Sendable)
-        }
+        case sendFailed
+        case receiveFailed
     }
 }
