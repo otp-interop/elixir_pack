@@ -67,7 +67,7 @@ jobs:
         run: |
           cat <<RELEASE_NOTES >> release_notes.txt
           # Swift Dependency
-          Add this binary target to use `erl_interface` from Swift.
+          Add this binary target to use \`erl_interface\` from Swift.
           \`\`\`swift
           .binaryTarget(
             name: "erl_interface",
