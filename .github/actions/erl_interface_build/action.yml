@@ -13,9 +13,14 @@ runs:
   using: "composite"
   steps:
     - name: Checkout OTP ${{ inputs.otp_version }}
-      run: git clone --depth 1 --branch OTP-${{ inputs.otp_version }} https://github.com/erlang/otp otp
+      uses: actions/checkout@v4
+      with:
+        repository: erlang/otp
+        ref: OTP-${{ inputs.otp_version }}
+        path: otp
     - name: Build
       working-directory: otp
+      shell: bash
       run: |
         set -a
         source ${{ inputs.xcomp_conf }}
