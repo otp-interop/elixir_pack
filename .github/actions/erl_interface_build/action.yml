@@ -1,0 +1,37 @@
+name: erl_interface_build
+inputs:
+  otp_version:
+    type: string
+    required: true
+  xcomp_conf:
+    type: string
+    required: true
+  output:
+    type: string
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout OTP ${{ inputs.otp_version }}
+      run: git clone --depth 1 --branch OTP-${{ inputs.otp_version }} https://github.com/erlang/otp otp
+    - name: Build
+      working-directory: otp
+      run: |
+        set -a
+        source ${{ inputs.xcomp_conf }}
+        set +a
+
+        export ERL_TOP=$(pwd)
+        export TARGET=$erl_xcomp_host
+
+        ./configure --host=$erl_xcomp_host
+        (cd lib/erl_interface && ./configure --host=$erl_xcomp_host)
+        (cd lib/erl_interface/src && make release)
+
+        mkdir -p ../artifacts
+        cp lib/erl_interface/obj/$(erts/autoconf/config.sub $erl_xcomp_host)/libei.a ../artifacts/libei.a
+    - name: Produce Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.output }}
+        path: artifacts/libei.a

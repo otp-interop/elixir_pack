@@ -9,12 +9,14 @@ on:
 jobs:
   ios:
     name: Build iOS
-    uses: ./.github/workflows/erl_interface_build.yml
-    with:
-      os: macos-latest
-      otp_version: ${{ inputs.otp_version }}
-      xcomp_conf: xcomp/erl-xcomp-arm64-ios.conf
-      output: universal-libei-ios.a
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/erl_interface_build.yml
+        with:
+          otp_version: ${{ inputs.otp_version }}
+          xcomp_conf: xcomp/erl-xcomp-arm64-ios.conf
+          output: universal-libei-ios.a
 
   ios_simulator:
     name: Build iOS Simulator
@@ -22,16 +24,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build for arm64
-        uses: ./.github/workflows/erl_interface_build.yml
+        uses: ./.github/actions/erl_interface_build.yml
         with:
-          os: macos-latest
           otp_version: ${{ inputs.otp_version }}
           xcomp_conf: xcomp/erl-xcomp-arm64-iossimulator.conf
           output: libei-iossimulator-arm64.a
       - name: Build for x86_64
-        uses: ./.github/workflows/erl_interface_build.yml
+        uses: ./.github/actions/erl_interface_build.yml
         with:
-          os: macos-latest
           otp_version: ${{ inputs.otp_version }}
           xcomp_conf: xcomp/erl-xcomp-x86_64-iossimulator.conf
           output: libei-iossimulator-x86_64.a
