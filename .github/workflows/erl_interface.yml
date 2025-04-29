@@ -1,0 +1,60 @@
+name: erl_interface
+on:
+  workflow_dispatch:
+    inputs:
+      otp_version:
+        description: 'OTP Version'
+        required: true
+        type: string
+jobs:
+  cross-compile:
+    strategy:
+      matrix:
+        include:
+          - name: arm64-ios
+            target: aarch64-apple-ios
+            conf: xcomp/erl-xcomp-arm64-ios.conf
+          - name: arm64-iossimulator
+            target: aarch64-apple-iossimulator
+            conf: xcomp/erl-xcomp-arm64-iossimulator.conf
+    runs-on: macos-latest
+    name: Build ${{ matrix.target }}
+    steps:
+      - name: Checkout OTP ${{ inputs.otp_version }}
+        run: git clone --depth 1 --branch OTP-${{ inputs.otp_version }} https://github.com/erlang/otp otp
+      - name: Build
+        working-directory: otp
+        run: |
+          set -a
+          source ${{ matrix.conf }}
+          set +a
+
+          export ERL_TOP=$(pwd)
+          export TARGET=${{ matrix.target }}
+
+          ./configure --host=${{ matrix.target }}
+          (cd lib/erl_interface && ./configure --host=${{ matrix.target }})
+          (cd lib/erl_interface/src && make release)
+      - name: Produce Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}
+          path: otp/lib/erl_interface/obj/${{ matrix.target }}/libei.a
+  xcframework:
+    runs-on: macos-latest
+    needs: cross-compile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: priv/include/erl_interface
+      - name: Retrieve Artifact
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Make xcframework
+        run: xcodebuild -create-xcframework -output libei.xcframework $(find artifacts -name libei.a | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
+      - name: Produce Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libei.xcframework
+          path: libei.xcframework

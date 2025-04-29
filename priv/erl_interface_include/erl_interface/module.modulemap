@@ -1,0 +1,4 @@
+module erl_interface {
+    header "ei.h"
+    export *
+}
