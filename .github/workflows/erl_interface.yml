@@ -63,8 +63,22 @@ jobs:
         run: |
           xcodebuild -create-xcframework -output erl_interface.xcframework $(find artifacts -type f -name '*.a' | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
           zip -0 -r erl_interface.xcframework.zip erl_interface.xcframework
+      - name: Make release notes
+        run: |
+          cat <<RELEASE_NOTES >> release_notes.txt
+          # Swift Dependency
+          Add this binary target to use `erl_interface` from Swift.
+          \`\`\`swift
+          .binaryTarget(
+            name: "erl_interface",
+            url: "https://github.com/liveview-native/elixir_pack/releases/download/${{ github.ref_name }}/erl_interface.xcframework.zip",
+            checksum: "$(swift package compute-checksum erl_interface.xcframework.zip)"
+          )
+          \`\`\`
+          RELEASE_NOTES
       - name: Release
         uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
         with:
+          body_path: release_notes.txt
           files: erl_interface.xcframework.zip
