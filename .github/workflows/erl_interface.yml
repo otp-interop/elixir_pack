@@ -55,7 +55,12 @@ jobs:
           path: artifacts
           pattern: libei-${{ matrix.platform }}-*.a
       - name: Merge Architectures
-        run: lipo -create -output universal-libei-${{ matrix.platform }}.a $(find artifacts -name '*.a' | xargs -I{} printf -- '{} ')
+        run: |
+          if [ "$(find artifacts -name '*.a' | wc -l)" -gt 1 ]; then
+            lipo -create -output universal-libei-${{ matrix.platform }}.a $(find artifacts -name '*.a' | xargs -I{} printf -- '{} ')
+          else
+            cp $(find artifacts -name '*.a' | xargs -I{} printf -- '{}') universal-libei-${{ matrix.platform }}.a
+          fi
       - name: Produce Artifact
         uses: actions/upload-artifact@v4
         with:
