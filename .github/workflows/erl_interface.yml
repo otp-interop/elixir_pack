@@ -1,11 +1,8 @@
 name: erl_interface
 on:
-  workflow_dispatch:
-    inputs:
-      otp_version:
-        description: 'OTP Version'
-        required: true
-        type: string
+  push:
+    tags:
+      - "*.*.*"
 jobs:
   ios:
     name: Build iOS
@@ -14,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/erl_interface_build
         with:
-          otp_version: ${{ inputs.otp_version }}
+          otp_version: ${{ github.ref }}
           xcomp_conf: xcomp/erl-xcomp-arm64-ios.conf
           name: universal-libei-ios
 
@@ -29,7 +26,7 @@ jobs:
       - name: Build
         uses: ./.github/actions/erl_interface_build
         with:
-          otp_version: ${{ inputs.otp_version }}
+          otp_version: ${{ github.ref }}
           xcomp_conf: xcomp/erl-xcomp-${{ matrix.arch }}-iossimulator.conf
           name: libei-iossimulator-${{ matrix.arch }}
   ios_simulator:
@@ -47,7 +44,7 @@ jobs:
       - name: Produce Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: universal-libei-iossimulator.a
+          name: universal-libei-iossimulator
           path: universal-libei-iossimulator.a
 
   xcframework:
@@ -63,9 +60,14 @@ jobs:
           pattern: universal-libei-*
           path: artifacts
       - name: Make xcframework
-        run: xcodebuild -create-xcframework -output libei.xcframework $(find artifacts -type f -name '*.a' | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
+        run: xcodebuild -create-xcframework -output erl_interface.xcframework $(find artifacts -type f -name '*.a' | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
       - name: Produce Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: libei.xcframework
-          path: libei.xcframework
+          name: erl_interface.xcframework
+          path: erl_interface.xcframework
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
+        with:
+          files: erl_interface.xcframework
