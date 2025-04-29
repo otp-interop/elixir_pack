@@ -34,12 +34,12 @@ jobs:
           (cd lib/erl_interface && ./configure --host=$erl_xcomp_host)
           (cd lib/erl_interface/src && make release)
 
-          mkdir -p ../artifacts/${{ matrix.platform }}
-          cp lib/erl_interface/obj/$(erts/autoconf/config.sub $erl_xcomp_host)/libei.a ../artifacts/${{ matrix.platform }}/libei-${{ matrix.arch }}.a
+          mkdir -p ../artifacts
+          cp lib/erl_interface/obj/$(erts/autoconf/config.sub $erl_xcomp_host)/libei.a ../artifacts/libei-${{ matrix.platform }}-${{ matrix.arch }}.a
       - name: Produce Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }}
+          name: libei-${{ matrix.platform }}-${{ matrix.arch }}.a
           path: artifacts/**/libei-*.a
   merge-archs:
     strategy:
@@ -53,9 +53,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          pattern: ${{ matrix.platform }}
+          pattern: libei-${{ matrix.platform }}-*.a
       - name: Merge Architectures
-        run: lipo -create -output universal-libei-${{ matrix.platform }}.a $(find artifacts -name 'libei-*.a' | xargs -I{} printf -- '{} ')
+        run: lipo -create -output universal-libei-${{ matrix.platform }}.a $(find artifacts -name '*.a' | xargs -I{} printf -- '{} ')
       - name: Produce Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -77,7 +77,7 @@ jobs:
         run:
           echo $(ls -R artifacts)
       - name: Make xcframework
-        run: xcodebuild -create-xcframework -output libei.xcframework $(find artifacts -name 'universal-libei-*.a' | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
+        run: xcodebuild -create-xcframework -output libei.xcframework $(find artifacts -name '*.a' | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
       - name: Produce Artifact
         uses: actions/upload-artifact@v4
         with:
