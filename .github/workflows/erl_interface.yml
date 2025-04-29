@@ -42,6 +42,8 @@ jobs:
         with:
           path: artifacts
           pattern: libei-iossimulator-*.a
+      - name: Check Archs
+        run: echo "lipo -create -output universal-libei-iossimulator.a$(find artifacts -name '*.a' | xargs -I{} printf -- ' {}')"
       - name: Merge Architectures
         run: lipo -create -output universal-libei-iossimulator.a$(find artifacts -name '*.a' | xargs -I{} printf -- ' {}')
       - name: Produce Artifact
