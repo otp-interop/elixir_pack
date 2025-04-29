@@ -10,15 +10,13 @@ jobs:
   cross-compile:
     strategy:
       matrix:
-        include:
-          - name: arm64-ios
-            target: aarch64-apple-ios
-            conf: xcomp/erl-xcomp-arm64-ios.conf
-          - name: arm64-iossimulator
-            target: aarch64-apple-iossimulator
-            conf: xcomp/erl-xcomp-arm64-iossimulator.conf
+        platform: [ios, iossimulator]
+        arch: [arm64, x86_64]
+        exclude:
+          - platform: ios
+            arch: x86_64
     runs-on: macos-latest
-    name: Build ${{ matrix.target }}
+    name: Build ${{ matrix.platform }} (${{ matrix.arch }})
     steps:
       - name: Checkout OTP ${{ inputs.otp_version }}
         run: git clone --depth 1 --branch OTP-${{ inputs.otp_version }} https://github.com/erlang/otp otp
@@ -26,33 +24,60 @@ jobs:
         working-directory: otp
         run: |
           set -a
-          source ${{ matrix.conf }}
+          source xcomp/erl-xcomp-${{ matrix.arch }}-${{ matrix.platform }}.conf
           set +a
 
           export ERL_TOP=$(pwd)
-          export TARGET=${{ matrix.target }}
+          export TARGET=$erl_xcomp_host
 
-          ./configure --host=${{ matrix.target }}
-          (cd lib/erl_interface && ./configure --host=${{ matrix.target }})
+          ./configure --host=$erl_xcomp_host
+          (cd lib/erl_interface && ./configure --host=$erl_xcomp_host)
           (cd lib/erl_interface/src && make release)
+
+          mkdir -p ../artifacts/${{ matrix.platform }}
+          cp lib/erl_interface/obj/$(erts/autoconf/config.sub $erl_xcomp_host)/libei.a ../artifacts/${{ matrix.platform }}/libei-${{ matrix.arch }}.a
       - name: Produce Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}
-          path: otp/lib/erl_interface/obj/${{ matrix.target }}/libei.a
-  xcframework:
+          name: ${{ matrix.platform }}
+          path: artifacts/**/libei-*.a
+  merge-archs:
+    strategy:
+      matrix:
+        platform: [ios, iossimulator]
     runs-on: macos-latest
     needs: cross-compile
+    name: Merge Architectures for ${{ matrix.platform }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          sparse-checkout: priv/include/erl_interface_include
-      - name: Retrieve Artifact
+      - name: Retrieve Artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          pattern: ${{ matrix.platform }}
+      - name: Merge Architectures
+        run: lipo -create -output universal-libei-${{ matrix.platform }}.a $(find artifacts -name 'libei-*.a' | xargs -I{} printf -- '{} ')
+      - name: Produce Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: universal-libei-${{ matrix.platform }}.a
+          path: universal-libei-${{ matrix.platform }}.a
+  xcframework:
+    runs-on: macos-latest
+    needs: merge-archs
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: priv/erl_interface_include
+      - name: Retrieve Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: universal-libei-*.a
+          path: artifacts
+      - name: Check Artifacts
+        run:
+          echo $(ls -R artifacts)
       - name: Make xcframework
-        run: xcodebuild -create-xcframework -output libei.xcframework $(find artifacts -name libei.a | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
+        run: xcodebuild -create-xcframework -output libei.xcframework $(find artifacts -name 'universal-libei-*.a' | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
       - name: Produce Artifact
         uses: actions/upload-artifact@v4
         with:
