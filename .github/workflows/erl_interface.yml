@@ -20,6 +20,7 @@ jobs:
     name: Build iOS Simulator
     runs-on: macos-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Build for arm64
         uses: ./.github/workflows/erl_interface_build.yml
         with:
