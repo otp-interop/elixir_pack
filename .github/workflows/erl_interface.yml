@@ -18,30 +18,32 @@ jobs:
           xcomp_conf: xcomp/erl-xcomp-arm64-ios.conf
           output: universal-libei-ios.a
 
-  ios_simulator:
-    name: Build iOS Simulator
+  ios_simulator_split_arch:
     runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [arm64, x86_64]
+    name: Build iOS Simulator (${{ matrix.arch }})
     steps:
       - uses: actions/checkout@v4
-      - name: Build for arm64
+      - name: Build
         uses: ./.github/actions/erl_interface_build
         with:
           otp_version: ${{ inputs.otp_version }}
-          xcomp_conf: xcomp/erl-xcomp-arm64-iossimulator.conf
-          output: libei-iossimulator-arm64.a
-      - name: Build for x86_64
-        uses: ./.github/actions/erl_interface_build
-        with:
-          otp_version: ${{ inputs.otp_version }}
-          xcomp_conf: xcomp/erl-xcomp-x86_64-iossimulator.conf
-          output: libei-iossimulator-x86_64.a
+          xcomp_conf: xcomp/erl-xcomp-${{ matrix.arch }}-iossimulator.conf
+          output: libei-iossimulator-${{ matrix.arch }}.a
+  ios_simulator:
+    name: Merge iOS Simulator Archs
+    runs-on: macos-latest
+    needs: [ios_simulator_split_arch]
+    steps:
       - name: Retrieve Artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
           pattern: libei-iossimulator-*.a
       - name: Merge Architectures
-        run: lipo -create -output universal-libei-iossimulator.a $(find artifacts -name '*.a' | xargs -I{} printf -- '{} ')
+        run: lipo -create -output universal-libei-iossimulator.a$(find artifacts -name '*.a' | xargs -I{} printf -- ' {}')
       - name: Produce Artifact
         uses: actions/upload-artifact@v4
         with:
