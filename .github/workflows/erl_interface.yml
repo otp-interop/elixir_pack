@@ -12,7 +12,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/erl_interface_build.yml
+      - uses: ./.github/actions/erl_interface_build
         with:
           otp_version: ${{ inputs.otp_version }}
           xcomp_conf: xcomp/erl-xcomp-arm64-ios.conf
@@ -24,13 +24,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build for arm64
-        uses: ./.github/actions/erl_interface_build.yml
+        uses: ./.github/actions/erl_interface_build
         with:
           otp_version: ${{ inputs.otp_version }}
           xcomp_conf: xcomp/erl-xcomp-arm64-iossimulator.conf
           output: libei-iossimulator-arm64.a
       - name: Build for x86_64
-        uses: ./.github/actions/erl_interface_build.yml
+        uses: ./.github/actions/erl_interface_build
         with:
           otp_version: ${{ inputs.otp_version }}
           xcomp_conf: xcomp/erl-xcomp-x86_64-iossimulator.conf
