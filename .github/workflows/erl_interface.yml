@@ -60,14 +60,11 @@ jobs:
           pattern: universal-libei-*
           path: artifacts
       - name: Make xcframework
-        run: xcodebuild -create-xcframework -output erl_interface.xcframework $(find artifacts -type f -name '*.a' | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
-      - name: Produce Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: erl_interface.xcframework
-          path: erl_interface.xcframework
+        run: |
+          xcodebuild -create-xcframework -output erl_interface.xcframework $(find artifacts -type f -name '*.a' | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
+          zip -0 -r erl_interface.xcframework.zip erl_interface.xcframework
       - name: Release
         uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
         with:
-          files: erl_interface.xcframework
+          files: erl_interface.xcframework.zip
