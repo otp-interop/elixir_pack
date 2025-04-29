@@ -16,7 +16,7 @@ jobs:
         with:
           otp_version: ${{ inputs.otp_version }}
           xcomp_conf: xcomp/erl-xcomp-arm64-ios.conf
-          output: universal-libei-ios.a
+          name: universal-libei-ios
 
   ios_simulator_split_arch:
     runs-on: macos-latest
@@ -31,7 +31,7 @@ jobs:
         with:
           otp_version: ${{ inputs.otp_version }}
           xcomp_conf: xcomp/erl-xcomp-${{ matrix.arch }}-iossimulator.conf
-          output: libei-iossimulator-${{ matrix.arch }}.a
+          name: libei-iossimulator-${{ matrix.arch }}
   ios_simulator:
     name: Merge iOS Simulator Archs
     runs-on: macos-latest
@@ -41,11 +41,9 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-          pattern: libei-iossimulator-*.a
-      - name: Check Archs
-        run: echo "lipo -create -output universal-libei-iossimulator.a$(find artifacts -name '*.a' | xargs -I{} printf -- ' {}')"
+          pattern: libei-iossimulator-*
       - name: Merge Architectures
-        run: lipo -create -output universal-libei-iossimulator.a$(find artifacts -name '*.a' | xargs -I{} printf -- ' {}')
+        run: lipo -create -output universal-libei-iossimulator.a$(find artifacts -type f -name '*.a' | xargs -I{} printf -- ' {}')
       - name: Produce Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -62,10 +60,10 @@ jobs:
       - name: Retrieve Artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: universal-libei-*.a
+          pattern: universal-libei-*
           path: artifacts
       - name: Make xcframework
-        run: xcodebuild -create-xcframework -output libei.xcframework $(find artifacts -name '*.a' | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
+        run: xcodebuild -create-xcframework -output libei.xcframework $(find artifacts -type f -name '*.a' | xargs -I{} printf -- '-library %s -headers priv/erl_interface_include ' {})
       - name: Produce Artifact
         uses: actions/upload-artifact@v4
         with:
