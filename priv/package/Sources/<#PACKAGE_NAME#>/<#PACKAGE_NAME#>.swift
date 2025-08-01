@@ -15,12 +15,13 @@ public final class <#PACKAGE_NAME#> {
         host: String = "127.0.0.1",
         port: Int? = nil,
         secretKeyBase: String = "<#SECRET_KEY_BASE#>",
-        cookie: String? = nil
+        cookie: String? = nil,
+        arguments: [String] = []
     ) {
         let name = "\(shortName)@localhost"
         self.name = name
         
-        let port = port ?? Self.automaticPort()
+        let port = port ?? Self.reservePort()
         self.port = port
         
         let cookie = cookie ?? UUID().uuidString
@@ -37,7 +38,7 @@ public final class <#PACKAGE_NAME#> {
                 with: [
                     "-name", name,
                     "-setcookie", cookie,
-                ]
+                ] + arguments
             )
         }
         self.thread.start()
@@ -81,11 +82,11 @@ public final class <#PACKAGE_NAME#> {
         erlang.erl_start(Int32(args.count), &args)
     }
 
-    /// Port 4000, used if ``automaticPort`` fails.
+    /// Port 4000, used if ``reservePort`` fails.
     static var fallbackPort: Int { 4000 }
     
     /// Automatic port assignment that falls back to ``fallbackPort``.
-    static func automaticPort() -> Int {
+    public static func reservePort() -> Int {
         // create a server bound to port 0
         let server = socket(AF_INET, SOCK_STREAM, 0)
         

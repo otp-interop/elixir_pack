@@ -7,9 +7,9 @@ defmodule ElixirPack.OpenSSL do
 
     tar_path = Path.join(openssl_dir, "openssl-1.1.1v.tar.gz")
 
-    System.cmd("curl", ["--output", tar_path, "-L", url])
+    System.cmd("curl", ["--output", tar_path, "-L", url], into: IO.stream())
 
-    System.cmd("tar", ["xzf", tar_path], cd: openssl_dir)
+    System.cmd("tar", ["xzf", tar_path], cd: openssl_dir, into: IO.stream())
 
     openssl_src = Path.join(openssl_dir, "openssl-1.1.1v")
 
@@ -53,11 +53,11 @@ defmodule ElixirPack.OpenSSL do
 
     File.write!(Path.join(openssl_src, "Configurations/15-ios.conf"), conf)
 
-    System.cmd(Path.join(openssl_src, "Configure"), [target, "--prefix=#{prefix}"], cd: openssl_src)
+    System.cmd(Path.join(openssl_src, "Configure"), [target, "--prefix=#{prefix}"], cd: openssl_src, into: IO.stream())
 
-    System.cmd("make", ["clean"], cd: openssl_src)
-    System.cmd("make", ["depend"], cd: openssl_src)
-    System.cmd("make", [], cd: openssl_src)
-    System.cmd("make", ["install_sw", "install_ssldirs"], cd: openssl_src)
+    System.cmd("make", ["clean"], cd: openssl_src, into: IO.stream())
+    System.cmd("make", ["depend"], cd: openssl_src, into: IO.stream())
+    System.cmd("make", [], cd: openssl_src, into: IO.stream())
+    System.cmd("make", ["install_sw", "install_ssldirs"], cd: openssl_src, into: IO.stream())
   end
 end

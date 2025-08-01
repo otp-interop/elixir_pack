@@ -31,7 +31,8 @@ defmodule Mix.Tasks.ElixirPack do
         args,
         strict: [
           target: :keep,
-          overwrite: :boolean
+          overwrite: :boolean,
+          nif: :keep
         ]
       )
 
@@ -126,7 +127,7 @@ defmodule Mix.Tasks.ElixirPack do
       if not File.exists?(lib_erlang) do
         Mix.shell().info([:yellow, "* building ", :reset, "otp"])
         otp_release = Path.join([build_dir, "_otp_release"])
-        ElixirPack.OTP.build(target, otp_target, openssl_dir, build_dir, otp_release, lib_erlang)
+        ElixirPack.OTP.build(target, otp_target, openssl_dir, build_dir, otp_release, lib_erlang, Keyword.get_values(options, :nif))
       else
         Mix.shell().info([:green, "* found ", :reset, "otp"])
       end

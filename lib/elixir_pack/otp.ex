@@ -2,18 +2,18 @@ defmodule ElixirPack.OTP do
   @make_flags "-j8 -O"
   @install_program "/usr/bin/install -c"
 
-  def build(sdk, otp_target, openssl, build_dir, otp_release, lib_erlang) do
+  def build(sdk, otp_target, openssl, build_dir, otp_release, lib_erlang, extra_nifs) do
     ref = "OTP-#{ElixirPack.Utils.otp_version}"
     url = "https://github.com/erlang/otp"
     otp_src = Path.join([build_dir, "_otp"])
 
-    System.cmd("git", ["clone", "--depth", "1", "--branch", ref, url, otp_src])
+    System.cmd("git", ["clone", "--depth", "1", "--branch", ref, url, otp_src], into: IO.stream())
 
     lib_crypto = Path.expand(Path.join(openssl, "lib/libcrypto.a"))
     nif_paths = [
       Path.expand(Path.join(otp_src, "lib/crypto/priv/lib/#{otp_target}/crypto.a")),
       Path.expand(Path.join(otp_src, "lib/asn1/priv/lib/#{otp_target}/asn1rt_nif.a"))
-    ]
+    ] ++ Enum.map(extra_nifs, &Path.expand/1)
 
     env = [
       {"MAKEFLAGS", @make_flags},
@@ -34,11 +34,11 @@ defmodule ElixirPack.OTP do
       "--with-ssl=#{openssl}",
       "--disable-dynamic-ssl-lib",
       "--enable-static-nifs=#{Enum.join(nif_paths, ",")}"
-    ] ++ Enum.map(exclusions, &("--without-#{&1}")), cd: otp_src, env: env)
+    ] ++ Enum.map(exclusions, &("--without-#{&1}")), cd: otp_src, env: env, into: IO.stream())
 
-    System.cmd(Path.join(otp_src, "otp_build"), ["boot"], cd: otp_src, env: env)
-    System.cmd(Path.join(otp_src, "otp_build"), ["release", otp_release], cd: otp_src, env: env)
-    System.cmd(Path.join(otp_release, "Install"), ["-sasl", otp_release], cd: otp_release, env: env)
+    System.cmd(Path.join(otp_src, "otp_build"), ["boot"], cd: otp_src, env: env, into: IO.stream())
+    System.cmd(Path.join(otp_src, "otp_build"), ["release", otp_release], cd: otp_src, env: env, into: IO.stream())
+    System.cmd(Path.join(otp_release, "Install"), ["-sasl", otp_release], cd: otp_release, env: env, into: IO.stream())
 
     # collect all otp output files to create liberlang
     {build_arch, 0} = System.cmd(Path.join(otp_src, "erts/autoconf/config.guess"), [], cd: otp_src)
@@ -53,11 +53,12 @@ defmodule ElixirPack.OTP do
     |> Enum.uniq()
     |> Enum.map(&Path.expand(&1))
 
+    IO.puts "=== libtool ==="
     System.cmd("libtool", [
       "-static",
       "-o", lib_erlang,
       lib_crypto,
-    ] ++ nif_paths ++ all_libraries)
+    ] ++ nif_paths ++ all_libraries, into: IO.stream())
 
     lib_erlang
   end

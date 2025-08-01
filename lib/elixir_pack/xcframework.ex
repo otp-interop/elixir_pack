@@ -19,7 +19,7 @@ defmodule ElixirPack.XCFramework do
             |> Path.dirname()
             |> File.mkdir_p()
 
-          System.cmd("lipo", ["-create", "-output", fat_lib] ++ Enum.map(libs, &(elem(&1, 1))))
+          System.cmd("lipo", ["-create", "-output", fat_lib] ++ Enum.map(libs, &(elem(&1, 1))), into: IO.stream())
           fat_lib
       end
     end
@@ -28,8 +28,9 @@ defmodule ElixirPack.XCFramework do
     headers = Path.join(Application.app_dir(:elixir_pack), "priv/erlang_include")
     System.cmd("xcodebuild",
       ["-create-xcframework"]
-      ++ Enum.flat_map(lib_erlangs, fn lib -> ["-library", lib, "-headers", headers] end)
-      ++ ["-output", Path.join(package_dir, "liberlang.xcframework")]
+        ++ Enum.flat_map(lib_erlangs, fn lib -> ["-library", lib, "-headers", headers] end)
+        ++ ["-output", Path.join(package_dir, "liberlang.xcframework")],
+      into: IO.stream()
     )
   end
 end
