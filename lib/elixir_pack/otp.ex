@@ -26,7 +26,6 @@ defmodule ElixirPack.OTP do
     ]
 
     # cross compile OTP
-    exclusions = ~w(common_test debugger dialyzer diameter edoc eldap erl_docgen et eunit ftp inets jinterface megaco mnesia observer odbc os_man tftp wx xmerl)
     xcomp = ElixirPack.Utils.xcomp_conf(otp_src, sdk)
     System.cmd(Path.join(otp_src, "otp_build"), [
       "configure",
@@ -34,10 +33,11 @@ defmodule ElixirPack.OTP do
       "--with-ssl=#{openssl}",
       "--disable-dynamic-ssl-lib",
       "--enable-static-nifs=#{Enum.join(nif_paths, ",")}"
-    ] ++ Enum.map(exclusions, &("--without-#{&1}")), cd: otp_src, env: env, into: IO.stream())
+    ], cd: otp_src, env: env, into: IO.stream())
 
-    System.cmd(Path.join(otp_src, "otp_build"), ["boot"], cd: otp_src, env: env, into: IO.stream())
-    System.cmd(Path.join(otp_src, "otp_build"), ["release", otp_release], cd: otp_src, env: env, into: IO.stream())
+    # -t for a OTP_TINY_BUILD
+    System.cmd(Path.join(otp_src, "otp_build"), ["boot", "-t"], cd: otp_src, env: env, into: IO.stream())
+    System.cmd(Path.join(otp_src, "otp_build"), ["release", "-t", otp_release], cd: otp_src, env: env, into: IO.stream())
     System.cmd(Path.join(otp_release, "Install"), ["-sasl", otp_release], cd: otp_release, env: env, into: IO.stream())
 
     # collect all otp output files to create liberlang

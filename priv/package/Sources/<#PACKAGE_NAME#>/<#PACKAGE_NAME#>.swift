@@ -36,7 +36,7 @@ public final class <#PACKAGE_NAME#> {
 
             Self.start(
                 with: [
-                    "-name", name,
+                    "-sname", name,
                     "-setcookie", cookie,
                 ] + arguments
             )

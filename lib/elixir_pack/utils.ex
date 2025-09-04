@@ -51,8 +51,8 @@ defmodule ElixirPack.Utils do
   def openssl_target("macosx-x86_64"), do: "darwin64-x86_64-cc"
 
   def xcomp_conf(otp_src, "iphoneos"), do: Path.join([otp_src, "xcomp", "erl-xcomp-arm64-ios.conf"])
-  def xcomp_conf(otp_src, "iphonesimulator-arm64"), do: Path.join([otp_src, "xcomp", "erl-xcomp-arm64-iossimulator.conf"])
-  def xcomp_conf(otp_src, "iphonesimulator-x86_64"), do: Path.join([otp_src, "xcomp", "erl-xcomp-x86_64-iossimulator.conf"])
-  def xcomp_conf(otp_src, "macosx-arm64"), do: Path.join(Application.app_dir(:elixir_pack), "priv/xcomp/erl-xcomp-arm64-macos.conf")
-  def xcomp_conf(otp_src, "macosx-x86_64"), do: Path.join(Application.app_dir(:elixir_pack), "priv/xcomp/erl-xcomp-x86_64-macos.conf")
+  def xcomp_conf(_otp_src, "iphonesimulator-arm64"), do: Path.join(Application.app_dir(:elixir_pack), "priv/xcomp/erl-xcomp-host-iossimulator.conf")
+  def xcomp_conf(_otp_src, "iphonesimulator-x86_64"), do: Path.join(Application.app_dir(:elixir_pack), "priv/xcomp/erl-xcomp-host-iossimulator.conf")
+  def xcomp_conf(_otp_src, "macosx-arm64"), do: Path.join(Application.app_dir(:elixir_pack), "priv/xcomp/erl-xcomp-arm64-macos.conf")
+  def xcomp_conf(_otp_src, "macosx-x86_64"), do: Path.join(Application.app_dir(:elixir_pack), "priv/xcomp/erl-xcomp-x86_64-macos.conf")
 end
